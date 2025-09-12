@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login | Timetable System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .login-box {
+      background: #fff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+      width: 350px;
+      text-align: center;
+    }
+    .login-box h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .login-box select,
+    .login-box input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 12px;
+      background: #2575fc;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .login-box button:hover {
+      background: #1a5ed8;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <select id="role" required>
+        <option value="">Select Role</option>
+        <option value="admin">Admin</option>
+        <option value="student">Student</option>
+        <option value="faculty">Faculty</option>
+      </select>
+
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+
+      <!-- Branch dropdown (hidden by default, shown only for students) -->
+      <div id="branchField" style="display:none;">
+        <select id="branch">
+          <option value="">Select Branch</option>
+          <option value="CSE">CSE</option>
+          <option value="MECHANICAL">MECHANICAL</option>
+          <!-- Add more branches if needed -->
+        </select>
+      </div>
+
+      <button type="submit">Login</button>
+      <div id="errorMsg" class="error"></div>
+    </form>
+  </div>
+
+  <script>
+    const adminCredentials = { username: "admin", password: "admin123" };
+
+    const studentCredentials = [
+      { username: "student1", password: "1234" }
+    ];
+
+    const facultyCredentials = [
+      { username: "PANDEY", password: "1234" },
+      { username: "KOMAL", password: "1234" },
+      { username: "SHARMA", password: "1234" },
+      { username: "MANISH", password: "1234" },
+      { username: "MERA", password: "1234" }
+    ];
+
+    // Show branch dropdown only for students
+    document.getElementById("role").addEventListener("change", function () {
+      if (this.value.toLowerCase() === "student") {
+        document.getElementById("branchField").style.display = "block";
+      } else {
+        document.getElementById("branchField").style.display = "none";
+      }
+    });
+
+    document.getElementById("loginForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const role = document.getElementById("role").value.toLowerCase();
+
+      // Admin login
+      if (role === "admin" && username === adminCredentials.username && password === adminCredentials.password) {
+        sessionStorage.setItem("role", "admin");
+        window.location.href = "dashboard.html";
+        return;
+      }
+
+      // Student login
+      if (role === "student") {
+        const branch = document.getElementById("branch").value;
+        const validStudent = studentCredentials.find(
+          s => s.username === username && s.password === password
+        );
+
+        if (validStudent && branch) {
+          sessionStorage.setItem("role", "student");
+          sessionStorage.setItem("studentName", validStudent.username);
+          sessionStorage.setItem("studentBranch", branch);
+          window.location.href = "student-timetable.html";
+          return;
+        } else {
+          document.getElementById("errorMsg").textContent = "Invalid student credentials or branch.";
+          return;
+        }
+      }
+
+      // Faculty login
+      if (role === "faculty") {
+        const validFaculty = facultyCredentials.find(
+          f => f.username === username && f.password === password
+        );
+        if (validFaculty) {
+          sessionStorage.setItem("role", "faculty");
+          sessionStorage.setItem("facultyName", validFaculty.username);
+          window.location.href = "faculty-timetable.html";
+          return;
+        } else {
+          document.getElementById("errorMsg").textContent = "Invalid faculty credentials.";
+          return;
+        }
+      }
+
+      document.getElementById("errorMsg").textContent = "Invalid credentials.";
+    });
+  </script>
+</body>
+</html>

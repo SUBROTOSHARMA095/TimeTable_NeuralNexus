@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Timetable</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    p {
+      text-align: center;
+      margin-top: 0;
+    }
+    .timetable {
+      margin: 20px auto;
+      max-width: 1000px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+      min-width: 120px;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <div class="timetable">
+    <div id="timetableContainer"></div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const role = sessionStorage.getItem("role");
+      const facultyName = sessionStorage.getItem("facultyName");
+
+      if (role !== "faculty" || !facultyName) {
+        alert("No faculty login detected. Redirecting to login...");
+        window.location.href = "login.html";
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:5000/get-saved-timetable");
+        const data = await res.json();
+
+        if (!data.timetable) {
+          document.getElementById("timetableContainer").innerHTML =
+            "<p>No timetable found.</p>";
+          return;
+        }
+
+        renderFacultyTimetable(facultyName, data.timetable);
+
+      } catch (err) {
+        console.error("Error fetching timetable:", err);
+        document.getElementById("timetableContainer").innerHTML =
+          "<p>Failed to load timetable. Please try again later.</p>";
+      }
+    });
+
+    function renderFacultyTimetable(facultyName, timetableData) {
+      const container = document.getElementById("timetableContainer");
+      container.innerHTML = `<h2>Faculty Timetable</h2><p>Welcome, ${facultyName}</p>`;
+
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const periods = ["Period 1", "Period 2", "Period 3", "Period 4", "Period 5"];
+
+      let html = `<table>
+                    <tr>
+                      <th>Day</th>
+                      ${periods.map(p => `<th>${p}</th>`).join("")}
+                    </tr>`;
+
+      days.forEach((day, dIdx) => {
+        html += `<tr><td>${day}</td>`;
+
+        for (let p = 0; p < periods.length; p++) {
+          let subjectFound = "Free";
+
+          // ✅ Check all branches for this faculty
+          for (const branch in timetableData) {
+            const shifts = timetableData[branch][dIdx];
+            if (!shifts) continue;
+
+            for (const shift in shifts) {
+              const slot = shifts[shift][p];
+              if (slot && slot[1] === facultyName) {
+                subjectFound = `${slot[0]} (${branch} - ${shift} - ${slot[2]})`;
+              }
+            }
+          }
+
+          html += `<td>${subjectFound}</td>`;
+        }
+
+        html += "</tr>";
+      });
+
+      html += "</table>";
+      container.innerHTML += html;
+    }
+  </script>
+</body>
+</html>
