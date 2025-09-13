@@ -1,0 +1,86 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Generated Timetables</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .buttons { margin-bottom: 20px; }
+    button { margin-right: 10px; padding: 6px 12px; }
+    .timetable { border: 2px solid #333; padding: 10px; margin: 10px 0; cursor: pointer; }
+    .timetable:hover { background: #f9f9f9; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #666; padding: 4px; text-align: center; }
+    .final { border: 3px solid green; background: #eaffea; }
+  </style>
+</head>
+<body>
+  <h1>Generated Timetables</h1>
+
+  <div class="buttons">
+    <button id="generateBtn">Generate New</button>
+    <button id="clearBtn">Clear All</button>
+  </div>
+
+  <div id="tablesContainer"></div>
+
+  
+</body>
+<script src="timetables.js"></script>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Generated Timetables</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .buttons { margin-bottom: 20px; }
+        button { margin-right: 10px; padding: 6px 12px; }
+        .timetable { border: 2px solid #333; padding: 10px; margin: 10px 0; cursor: pointer; }
+        .timetable:hover { background: #f9f9f9; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #666; padding: 4px; text-align: center; }
+        .final { border: 3px solid green; background: #eaffea; }
+        canvas { border: 1px solid #ccc; display: block; margin: 20px auto; }
+        #workloadDiv { margin-top: 30px; }
+        #workloadDiv table, #workloadDiv th, #workloadDiv td {
+            border: 1px solid #666;
+            padding: 6px;
+        }
+        .relative-load-bar {
+            background: #ddd;
+            height: 16px;
+            width: 100%;
+            position: relative;
+        }
+        .load-fill {
+            background: #2196F3;
+            height: 100%;
+        }
+        .saved-list { margin-top: 20px; border: 1px solid #ddd; padding: 15px; }
+        .saved-item { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .saved-item:hover { background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>Generated Timetables</h1>
+
+    <div class="buttons">
+        <button id="generateBtn">Generate New</button>
+        <button id="saveBtn" style="display: none;">💾 Save This Timetable</button>
+        <button id="clearBtn">Clear Display</button>
+        <button id="browseBtn">Browse Saved Timetables</button>
+    </div>
+
+    <div id="loader" style="display: none;">Generating timetable...</div>
+    <div id="tablesContainer"></div>
+    <div id="workloadDiv"></div>
+    <div id="savedTimetablesList" class="saved-list" style="display: none;">
+        <h2>Saved Timetables</h2>
+    </div>
+
+    <script src="timetables.js"></script>
+</body>
+</html>

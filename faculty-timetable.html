@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Faculty Timetable</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(135deg, #f4f6f9, #dbe6f6);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .profile-card {
+      max-width: 1050px;
+      margin: 0 auto 15px auto;
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .profile-avatar { font-size: 36px; }
+    .profile-info h3 { margin: 0; font-size: 18px; color: #007bff; }
+    .profile-info p { margin: 2px 0 0; font-size: 14px; color: #555; }
+    .speech-controls { display:flex; gap:10px; }
+    .read-btn {
+      background: #007bff; border: none; color: white; padding: 8px 16px;
+      border-radius: 8px; cursor: pointer; font-size: 14px;
+    }
+    .read-btn:hover { background: #0056b3; }
+
+    .timetable {
+      margin: 20px auto; max-width: 1050px; background: #fff;
+      padding: 30px; border-radius: 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      overflow-x: auto;
+    }
+    table { width:100%; border-collapse: collapse; margin-top:20px; font-size:15px; }
+    th, td { border:1px solid #e5e5e5; padding:12px; text-align:center; min-width:120px; vertical-align: middle; }
+    th { background: linear-gradient(135deg,#007bff,#0056b3); color:#fff; text-transform:uppercase; }
+    tr:nth-child(even) { background: #f8fbff; }
+    td { font-size:14px; }
+    .highlight-day td { background: #fff6cc !important; font-weight: 600; }
+    .small { font-size: 12px; color:#666; }
+    #loader { font-size: 16px; color:#555; }
+  </style>
+</head>
+<body>
+  <div class="profile-card">
+    <div style="display:flex; align-items:center; gap:15px;">
+      <div class="profile-avatar">👩‍🏫</div>
+      <div class="profile-info">
+        <h3 id="facultyNameHeader">Faculty</h3>
+        <p>Faculty Timetable Portal</p>
+      </div>
+    </div>
+    <div class="speech-controls">
+      <button id="readBtn" class="read-btn">🔊 Read Aloud</button>
+      <button id="pauseBtn" class="read-btn" style="display:none">⏸️ Pause</button>
+      <button id="stopBtn" class="read-btn" style="display:none">⏹️ Stop</button>
+    </div>
+  </div>
+
+  <div class="timetable">
+    <div id="loader">Loading timetable...</div>
+    <div id="timetableContainer" style="display:none;"></div>
+  </div>
+
+<script>
+/* ---------- Configuration ---------- */
+const API_BASE = "http://localhost:5000"; // change if your backend is elsewhere
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+
+/* ---------- UI elements ---------- */
+const facultyNameStored = (sessionStorage.getItem("facultyName") || "Faculty").trim();
+document.getElementById("facultyNameHeader").textContent = facultyNameStored;
+const loader = document.getElementById("loader");
+const container = document.getElementById("timetableContainer");
+
+let latestTableText = "";
+let speechUtterance = null;
+const readBtn = document.getElementById("readBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const stopBtn = document.getElementById("stopBtn");
+
+/* ---------- Helpers ---------- */
+function safeLower(s){ return (s||"").toString().trim().toLowerCase(); }
+function buildEmptyGrid(periods){
+  const grid = {};
+  for(const d of DAYS) grid[d] = Array.from({length: periods}, ()=> null);
+  return grid;
+}
+
+/* ---------- Fetch + render ---------- */
+document.addEventListener("DOMContentLoaded", async () => {
+  const role = sessionStorage.getItem("role");
+  const facultyName = sessionStorage.getItem("facultyName");
+
+  if (role !== "faculty" || !facultyName) {
+    alert("No faculty login detected. Redirecting to login...");
+    window.location.href = "login.html";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/get-saved-timetable`);
+    if (!res.ok) {
+      console.error("Network error fetching timetable:", res.status, res.statusText);
+      loader.textContent = "Failed to fetch timetable (network).";
+      return;
+    }
+    const data = await res.json();
+    console.log("Fetched timetable from backend:", data);
+
+    loader.style.display = "none";
+    container.style.display = "block";
+
+    if (!data || !data.timetable) {
+      container.innerHTML = "<p>No timetable found.</p>";
+      return;
+    }
+
+    // Render
+    renderFacultyTimetable(facultyNameStored, data.timetable);
+
+    // highlight current day (map Monday->row 1 because row 0 is header)
+    const todayIndex = new Date().getDay(); // 0=Sun,1=Mon...
+    if (todayIndex >= 1 && todayIndex <= 5) {
+      const table = container.querySelector("table");
+      if (table) {
+        // header is row 0, monday is row 1
+        const rowToHighlight = table.rows[todayIndex];
+        if (rowToHighlight) rowToHighlight.classList.add("highlight-day");
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching timetable:", err);
+    loader.textContent = "Failed to load timetable. Check backend and CORS.";
+  }
+});
+
+/* ---------- Main renderer ---------- */
+function renderFacultyTimetable(facultyName, timetableData) {
+  container.innerHTML = `<h2>Faculty Timetable</h2><p>Welcome, ${facultyName}</p>`;
+
+  // 1) Collect all periods present across timetable (fallback if none present)
+  const allPeriodsSet = new Set();
+  for (const branchName in timetableData) {
+    const branch = timetableData[branchName];
+    for (const sectionName in branch) {
+      const schedule = branch[sectionName].schedule || {};
+      for (const day in schedule) {
+        const slots = schedule[day] || [];
+        slots.forEach(s => { if (s && s.period) allPeriodsSet.add(Number(s.period)); });
+      }
+    }
+  }
+
+  // if no periods found, try to infer from first section's day length
+  let periods = Array.from(allPeriodsSet).sort((a,b)=>a-b);
+  if (periods.length === 0) {
+    // estimate periods from first available schedule
+    outer:
+    for (const b in timetableData) {
+      for (const s in timetableData[b]) {
+        const sch = (timetableData[b][s].schedule || {})[Object.keys(timetableData[b][s].schedule || {})[0]];
+        if (sch && sch.length) {
+          periods = sch.map(x => x.period || (sch.indexOf(x)+1));
+          break outer;
+        }
+      }
+    }
+    if (periods.length === 0) {
+      // default to 6 periods if nothing present
+      periods = [1,2,3,4,5,6];
+    }
+  }
+
+  // 2) Build table header
+  let html = `<table aria-label="Faculty timetable"><thead><tr><th>Day</th>${periods.map(p=>`<th>Period ${p}</th>`).join("")}</tr></thead><tbody>`;
+  latestTableText = `Timetable for ${facultyName}. `;
+
+  // 3) For each day, build a row; each cell contains all slots across all branches/sections matching this faculty and period
+  for (let d = 0; d < DAYS.length; d++) {
+    const dayName = DAYS[d];
+    html += `<tr><td>${dayName}</td>`;
+    latestTableText += `${dayName}: `;
+
+    for (const periodNumber of periods) {
+      const matches = []; // html fragments
+      const matchesForSpeech = [];
+
+      for (const branchName in timetableData) {
+        for (const sectionName in timetableData[branchName]) {
+          const scheduleObj = timetableData[branchName][sectionName].schedule || {};
+          // Some timetables use "Day 1" keys, others use "Monday". Try both
+          const dayKeyA = `Day ${d+1}`;
+          const daySchedule = scheduleObj[dayKeyA] || scheduleObj[dayName] || [];
+          if (!Array.isArray(daySchedule)) continue;
+
+          // find slot with matching period (robust)
+          const slot = daySchedule.find(s => {
+            if (!s) return false;
+            if ("period" in s) return Number(s.period) === Number(periodNumber);
+            // fallback: slot position equals period index (1-based)
+            const idx = daySchedule.indexOf(s);
+            return (idx + 1) === Number(periodNumber);
+          });
+          if (slot && safeLower(slot.faculty) === safeLower(facultyName)) {
+            // build display
+            const subj = slot.subject || slot.type || "Unknown";
+            const room = slot.room || slot.room_id || "Unassigned";
+            matches.push(`<strong>${subj}</strong><br><span class="small">${branchName} / ${sectionName}</span><br><small>${room}</small>`);
+            matchesForSpeech.push(`${subj} — ${branchName} ${sectionName} in ${room}`);
+          }
+        }
+      }
+
+      const cellHtml = matches.length ? matches.join("<br><hr style='border-top:1px solid #e5e5e5;margin:6px 0;'>") : "—";
+      html += `<td>${cellHtml}</td>`;
+      latestTableText += matchesForSpeech.length ? matchesForSpeech.join(", ") + ". " : "Free Period. ";
+    }
+
+    html += "</tr>";
+  }
+
+  html += "</tbody></table>";
+  container.innerHTML += html;
+}
+
+/* ---------- Speech controls ---------- */
+function toggleReadAloud() {
+  if (!latestTableText) {
+    alert("No timetable loaded yet.");
+    return;
+  }
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+    readBtn.textContent = "⏸️ Pause";
+  } else if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.pause();
+    readBtn.textContent = "▶️ Resume";
+  } else {
+    speechUtterance = new SpeechSynthesisUtterance(latestTableText);
+    speechUtterance.lang = "en-US";
+    speechUtterance.rate = 0.95;
+    speechUtterance.pitch = 1;
+    speechUtterance.onend = () => {
+      readBtn.textContent = "🔊 Read Aloud";
+      pauseBtn.style.display = "none";
+      stopBtn.style.display = "none";
+    };
+    window.speechSynthesis.speak(speechUtterance);
+    readBtn.textContent = "⏸️ Pause";
+    pauseBtn.style.display = "inline";
+    stopBtn.style.display = "inline";
+  }
+}
+function pauseSpeech() {
+  if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+    window.speechSynthesis.pause();
+    readBtn.textContent = "▶️ Resume";
+  }
+}
+function stopSpeech() {
+  window.speechSynthesis.cancel();
+  readBtn.textContent = "🔊 Read Aloud";
+  pauseBtn.style.display = "none";
+  stopBtn.style.display = "none";
+}
+
+/* ---------- Listeners ---------- */
+readBtn.addEventListener("click", toggleReadAloud);
+pauseBtn.addEventListener("click", pauseSpeech);
+stopBtn.addEventListener("click", stopSpeech);
+
+</script>
+</body>
+</html>
